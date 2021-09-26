@@ -14,8 +14,6 @@
 #define SEQUENTIAL 1
 #define THREADED 2
 #define OPENMP 3
-#define MPI 4
-
 
 using namespace std;
 
@@ -169,7 +167,6 @@ int *KNNOpenMP(ArffData *train, ArffData *test, int k, int num_desired_threads) 
     return predictions;
 }
 
-
 void *KnnRunSingleThread(void *arguments) {
     struct ThreadArgs *argus = (struct ThreadArgs *) arguments;
     int k = argus->k;
@@ -267,7 +264,6 @@ int *KNNThreaded(ArffData *train, ArffData *test, int k, int num_desired_threads
     return predictions;
 }
 
-
 int *computeConfusionMatrix(int *predictions, ArffData *dataset) {
     int *confusionMatrix = (int *) calloc(dataset->num_classes() * dataset->num_classes(),
                                           sizeof(int)); // matrix size numberClasses x numberClasses
@@ -299,7 +295,7 @@ int main(int argc, char *argv[]) {
     if (argc < 6) {
         cout << "Usage: ./main datasets/train.arff datasets/test.arff k NUM_DESIRED_THREADS VERSION"
                 "\n\t\tk = 3 (typically)\n\t\tNUM_DESIRED_THREADS = 1,2,4,8,16,32,64 or 128"
-                "\n\t\tVERSION = 1 for Sequential, 2 for Threaded, 3 for OpenMP, 4 for MPI" << endl;
+                "\n\t\tVERSION = 1 for Sequential, 2 for Threaded, 3 for OpenMP" << endl;
         exit(0);
     }
 
@@ -333,7 +329,6 @@ int main(int argc, char *argv[]) {
     }
         // endregion : Sequential Version
 
-
         // region : OpenMP version
     else if (version == OPENMP) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -347,9 +342,7 @@ int main(int argc, char *argv[]) {
         printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
                "Accuracy was %.4f\n", k, test->num_instances(), train->num_instances(),
                (long long unsigned int) diff, accuracy);
-    }
-        // endregion : MPI Version
-
+    } // endregion : OpenMP Version
 
         // region : Threaded Version
     else if (version == THREADED) {
@@ -364,14 +357,13 @@ int main(int argc, char *argv[]) {
         printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
                "Accuracy was %.4f\n", k, test->num_instances(), train->num_instances(),
                (long long unsigned int) diff, accuracy);
-    } else if (version == MPI) {
-        // Still a TODO MPI Version
-    } else {
-        cout << "Invalid Version!\nVERSION ->\n\t1 for Sequential,\n\t2 for Threaded,\n\t3 for OpenMP,\n\t4 for MPI"
+    } // endregion : Threaded Version
+        /*else if (version == MPI) {
+            // Still a TO-DO MPI Version -> Done inside mpi.cpp
+        }*/
+    else {
+        cout << "Invalid Version!\nVERSION ->\n\t1 for Sequential,\n\t2 for Threaded,\n\t3 for OpenMP"
              << endl;
         exit(0);
     }
-
-    // endregion : Threaded Version
-
 }
