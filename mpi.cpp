@@ -131,14 +131,12 @@ int *KNN_MPI(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
 
 int main(int argc, char *argv[]) {
 
-    if (argc < 6) {
+    if (argc != 4) {
         cout << "Usage: ./main datasets/train.arff datasets/test.arff k" << endl;
         exit(0);
     }
 
     int k = strtol(argv[3], NULL, 10);
-    int num_desired_threads = strtol(argv[4], NULL, 10);
-    int version = strtol(argv[5], NULL, 10);
 
     // Open the datasets
     ArffParser parserTrain(argv[1]);
@@ -150,7 +148,7 @@ int main(int argc, char *argv[]) {
     int *predictions = NULL;
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    predictions = KNN_MPI(argc, argv, train, test, k, num_desired_threads);
+    predictions = KNN_MPI(argc, argv, train, test, k);
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     // Compute the confusion matrix
     int *confusionMatrix = computeConfusionMatrix(predictions, test);
@@ -159,7 +157,7 @@ int main(int argc, char *argv[]) {
     uint64_t diff = (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec) / 1e6;
     printf("%i-NN  -  %lu test  - %lu train  -  %llu ms  -   %.4f%%\\n", k,
            test->num_instances(), train->num_instances(),
-           (long long unsigned int) diff, accuracy));
+           (long long unsigned int) diff, accuracy);
     /*printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
            "Accuracy was %.4f\n", k, test->num_instances(), train->num_instances(),
            (long long unsigned int) diff, accuracy);*/
