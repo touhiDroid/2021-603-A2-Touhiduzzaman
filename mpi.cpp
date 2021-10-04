@@ -41,6 +41,7 @@ int *computeConfusionMatrix(int *predictions, ArffData *dataset) {
 float computeAccuracy(int *confusionMatrix, ArffData *dataset) {
     int successfulPredictions = 0;
 
+    // TODO Apply MPI_Reduce here
     for (int i = 0; i < dataset->num_classes(); i++) {
         successfulPredictions += confusionMatrix[i * dataset->num_classes() +
                                                  i]; // elements in the diagonal are correct predictions
@@ -67,7 +68,7 @@ int *KNN_MPI(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
     int end = (rank + 1) * n / ntasks;
     if (rank == ntasks - 1)
         end = n;
-
+    // TODO MPI_Scatter here
     for (int queryIndex = start; queryIndex < end; queryIndex++) {
 
         // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
