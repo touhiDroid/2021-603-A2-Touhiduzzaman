@@ -38,46 +38,50 @@ int *computeConfusionMatrix(int *predictions, ArffData *dataset) {
     return confusionMatrix;
 }
 
-float computeAccuracy(int *confusionMatrix, ArffData *dataset) {
-    int successfulPredictions = 0;
+float computeAccuracy(int argc, char *argv[], int *confusionMatrix, ArffData *dataset) {
 
-    // TODO Apply MPI_Reduce here
-    for (int i = 0; i < dataset->num_classes(); i++) {
-        successfulPredictions += confusionMatrix[i * dataset->num_classes() +
-                                                 i]; // elements in the diagonal are correct predictions
+    int ntasks, rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    // Apply MPI_Reduce here
+    int total = dataset->num_classes();
+    // int partition_size = (n + num_desired_threads - 1) / num_desired_threads;
+
+    int start = rank * total / ntasks;
+    int end = (rank + 1) * total / ntasks;
+    if (rank == ntasks - 1)
+        end = total;
+    
+    int localPredicts = 0;
+    for (int i = start; i < end; i++) {
+        localPredicts += confusionMatrix[i * total + i]; // elements in the diagonal are correct predictions
     }
+    // Reduce all of the localPredicts into the globalPredicts
+    int successfulPredictions = 0;
+    MPI_Reduce(&localPredicts, &successfulPredictions, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Finalize();
 
     return successfulPredictions / (float) dataset->num_instances();
 }
 
 int *KNN_MPI(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
-    int ntasks, rank;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
 
     // predictions is the array where you have to return the class predicted (integer) for the test dataset instances
     int *predictions = (int *) malloc(test->num_instances() * sizeof(int));
 
+    // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
+    float *candidates = (float *) calloc(k * 2, sizeof(float));
+    for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
+
     int num_classes = train->num_classes();
 
-    int n = test->num_instances();
-    // int partition_size = (n + num_desired_threads - 1) / num_desired_threads;
+    // Stores bincounts of each class over the final set of candidate NN
+    int *classCounts = (int *) calloc(num_classes, sizeof(int));
 
-    int start = rank * n / ntasks;
-    int end = (rank + 1) * n / ntasks;
-    if (rank == ntasks - 1)
-        end = n;
-    // TODO MPI_Scatter here
-    for (int queryIndex = start; queryIndex < end; queryIndex++) {
-
-        // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
-        float *candidates = (float *) calloc(k * 2, sizeof(float));
-        for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
-
-        // Stores bincounts of each class over the final set of candidate NN
-        int *classCounts = (int *) calloc(num_classes, sizeof(int));
-
+    for (int queryIndex = 0; queryIndex < test->num_instances(); queryIndex++) {
         for (int keyIndex = 0; keyIndex < train->num_instances(); keyIndex++) {
 
             float dist = distance(test->get_instance(queryIndex), train->get_instance(keyIndex));
@@ -122,11 +126,7 @@ int *KNN_MPI(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
         memset(classCounts, 0, num_classes * sizeof(int));
     }
 
-    int *global_predictions = (int *) malloc(test->num_instances() * sizeof(int));
-    MPI_Reduce(&predictions, &global_predictions, n, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-
-    MPI_Finalize();
-    return global_predictions;
+    return predictions;
 }
 
 int main(int argc, char *argv[]) {
@@ -153,9 +153,9 @@ int main(int argc, char *argv[]) {
     // Compute the confusion matrix
     int *confusionMatrix = computeConfusionMatrix(predictions, test);
     // Calculate the accuracy
-    float accuracy = computeAccuracy(confusionMatrix, test);
+    float accuracy = computeAccuracy(argc, argv, confusionMatrix, test);
     uint64_t diff = (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec) / 1e6;
-    printf("%i-NN  -  %lu test  - %lu train  -  %llu ms  -   %.4f%%\\n", k,
+    printf("%i-NN  -  %lu test  - %lu train  -  %llu ms  -   %.4f%%\n", k,
            test->num_instances(), train->num_instances(),
            (long long unsigned int) diff, accuracy);
     /*printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
