@@ -58,7 +58,7 @@ float computeAccuracy(int argc, char *argv[], int *confusionMatrix, ArffData *da
     for (int i = start; i < end; i++) {
         localPredicts += confusionMatrix[i * total + i]; // elements in the diagonal are correct predictions
     }
-    // Reduce all of the localPredicts into the globalPredicts
+    // Reduce all the localPredicts into the globalPredicts
     int successfulPredictions = 0;
     MPI_Reduce(&localPredicts, &successfulPredictions, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Finalize();
@@ -78,7 +78,7 @@ int *KNN_MPI(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
 
     int num_classes = train->num_classes();
 
-    // Stores bincounts of each class over the final set of candidate NN
+    // Stores bin-counts of each class over the final set of candidate NN
     int *classCounts = (int *) calloc(num_classes, sizeof(int));
 
     for (int queryIndex = 0; queryIndex < test->num_instances(); queryIndex++) {

@@ -8,7 +8,6 @@
 #include "libarff/arff_parser.h"
 #include "libarff/arff_data.h"
 #include <bits/stdc++.h>
-#include <mpi.h>
 
 using namespace std;
 
@@ -136,7 +135,7 @@ int main(int argc, char *argv[]) {
     // Compute the confusion matrix
     int *confusionMatrix = computeConfusionMatrix(predictions, test);
     // Calculate the accuracy
-    float accuracy = computeAccuracy(argc, argv, confusionMatrix, test);
+    float accuracy = computeAccuracy(confusionMatrix, test);
     uint64_t diff = (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec) / 1e6;
     printf("%i-NN  -  %lu test  - %lu train  -  %llu ms  -   %.4f%%\n", k,
            test->num_instances(), train->num_instances(),
