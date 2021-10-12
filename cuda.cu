@@ -22,33 +22,30 @@ float distance(ArffInstance *a, ArffInstance *b) {
     return sum;
 }
 
-int *computeConfusionMatrix(int *predictions, ArffData *dataset) {
-    int *confusionMatrix = (int *) calloc(dataset->num_classes() * dataset->num_classes(),
-                                          sizeof(int)); // matrix size numberClasses x numberClasses
+int *computeConfusionMatrix_ArrayImpl(int *predictions, int nClasses, int nInstances, int32 *lastAttributesArr) {
+    int *confusionMatrix = (int *) calloc(nClasses * nClasses, sizeof(int));
 
-    for (int i = 0; i < dataset->num_instances(); i++) // for each instance compare the true class and predicted class
-    {
-        int trueClass = dataset->get_instance(i)->get(dataset->num_attributes() - 1)->operator int32();
+    for (int i = 0; i < nInstances; i++) { // for each instance compare the true class and predicted class
+        int trueClass = lastAttributesArr[i];
         int predictedClass = predictions[i];
 
-        confusionMatrix[trueClass * dataset->num_classes() + predictedClass]++;
+        confusionMatrix[trueClass * nClasses + predictedClass]++;
     }
-
     return confusionMatrix;
 }
 
-float computeAccuracy(int *confusionMatrix, ArffData *dataset) {
+float computeAccuracy_ArrayImpl(int *confusionMatrix, int nClasses, int nInstances) {
     int successfulPredictions = 0;
 
-    for (int i = 0; i < dataset->num_classes(); i++) {
-        successfulPredictions += confusionMatrix[i * dataset->num_classes() +
-                                                 i]; // elements in the diagonal are correct predictions
+    for (int i = 0; i < nClasses; i++) {
+        successfulPredictions += confusionMatrix[i * nClasses + i]; // elements in the diagonal are correct predictions
     }
 
-    return successfulPredictions / (float) dataset->num_instances();
+    return successfulPredictions / ((float) nInstances * 1.0);
 }
 
-int *KNN(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
+int *KNN_ArrayImpl(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
+                   ArffData *train, ArffData *test, int k) {
     // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
 
     // predictions is the array where you have to return the class predicted (integer) for the test dataset instances
@@ -58,13 +55,13 @@ int *KNN(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
     float *candidates = (float *) calloc(k * 2, sizeof(float));
     for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
 
-    int num_classes = train->num_classes();
+    // int num_classes = train->num_classes();
 
     // Stores bincounts of each class over the final set of candidate NN
     int *classCounts = (int *) calloc(num_classes, sizeof(int));
 
-    for (int queryIndex = 0; queryIndex < test->num_instances(); queryIndex++) {
-        for (int keyIndex = 0; keyIndex < train->num_instances(); keyIndex++) {
+    for (int queryIndex = 0; queryIndex < testInstances; queryIndex++) {
+        for (int keyIndex = 0; keyIndex < trainInstances; keyIndex++) {
 
             float dist = distance(test->get_instance(queryIndex), train->get_instance(keyIndex));
 
@@ -80,8 +77,8 @@ int *KNN(int argc, char *argv[], ArffData *train, ArffData *test, int k) {
 
                     // Set key vector as potential k NN
                     candidates[2 * c] = dist;
-                    candidates[2 * c + 1] = train->get_instance(keyIndex)->get(
-                            train->num_attributes() - 1)->operator float(); // class value
+                    // class value
+                    candidates[2 * c + 1] = train->get_instance(keyIndex)->get(numAttrs - 1)->operator float();
 
                     break;
                 }
@@ -129,17 +126,26 @@ int main(int argc, char *argv[]) {
     struct timespec start, end;
     int *predictions = NULL;
 
+    int nClasses = test->num_classes();
+    int32 trainInstances = train->num_instances();
+    int32 testInstances = test->num_instances();
+    int32 numAttrs = test->num_attributes();
+
+    int32 *testLastAttrsArr = (int32 *) malloc(testInstances * sizeof(int32));
+    for (int i = 0; i < testInstances; i++)
+        testLastAttrsArr[i] = test->get_instance(i)->get(numAttrs - 1)->operator int32();
+
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    predictions = KNN(argc, argv, train, test, k);
+    predictions = KNN_ArrayImpl(nClasses, trainInstances, testInstances, numAttrs, train, test, k);
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    // Compute the confusion matrix
-    int *confusionMatrix = computeConfusionMatrix(predictions, test);
-    // Calculate the accuracy
-    float accuracy = computeAccuracy(confusionMatrix, test);
+    int *confusionMatrix = computeConfusionMatrix_ArrayImpl(
+            predictions, nClasses, testInstances, testLastAttrsArr);// (predictions, test);
+    float accuracy = computeAccuracy_ArrayImpl(
+            confusionMatrix, test->num_classes(), test->num_instances());// (confusionMatrix, test);
     uint64_t diff = (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec) / 1e6;
+
     printf("%i-NN  -  %lu test  - %lu train  -  %llu ms  -   %.4f%%\n", k,
-           test->num_instances(), train->num_instances(),
-           (long long unsigned int) diff, accuracy);
+           testInstances, trainInstances, (long long unsigned int) diff, accuracy);
     /*printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
            "Accuracy was %.4f\n", k, test->num_instances(), train->num_instances(),
            (long long unsigned int) diff, accuracy);*/
