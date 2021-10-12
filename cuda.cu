@@ -11,11 +11,11 @@
 
 using namespace std;
 
-float distance(ArffInstance *a, ArffInstance *b) {
+float distance(int32 size, float *a, float *b) {
     float sum = 0;
 
-    for (int i = 0; i < a->size() - 1; i++) {
-        float diff = (a->get(i)->operator float() - b->get(i)->operator float());
+    for (int i = 0; i < size; i++) {
+        float diff = (a[i] - b[i]);
         sum += diff * diff;
     }
 
@@ -45,11 +45,11 @@ float computeAccuracy_ArrayImpl(int *confusionMatrix, int nClasses, int nInstanc
 }
 
 int *KNN_ArrayImpl(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
-                   ArffData *train, ArffData *test, int k) {
+                   float **trainArr, float **testArr, ArffData *train, ArffData *test, int k) {
     // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
 
     // predictions is the array where you have to return the class predicted (integer) for the test dataset instances
-    int *predictions = (int *) malloc(test->num_instances() * sizeof(int));
+    int *predictions = (int *) malloc(testInstances * sizeof(int));
 
     // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
     float *candidates = (float *) calloc(k * 2, sizeof(float));
@@ -60,10 +60,12 @@ int *KNN_ArrayImpl(int num_classes, int32 trainInstances, int32 testInstances, i
     // Stores bincounts of each class over the final set of candidate NN
     int *classCounts = (int *) calloc(num_classes, sizeof(int));
 
+    printf("Starting O(n^3)\n");
     for (int queryIndex = 0; queryIndex < testInstances; queryIndex++) {
         for (int keyIndex = 0; keyIndex < trainInstances; keyIndex++) {
 
-            float dist = distance(test->get_instance(queryIndex), train->get_instance(keyIndex));
+            // float dist = distance(test->get_instance(queryIndex), train->get_instance(keyIndex));
+            float dist = distance(numAttrs, testArr[queryIndex], trainArr[keyIndex]);
 
             // Add to our candidates
             for (int c = 0; c < k; c++) {
@@ -78,7 +80,8 @@ int *KNN_ArrayImpl(int num_classes, int32 trainInstances, int32 testInstances, i
                     // Set key vector as potential k NN
                     candidates[2 * c] = dist;
                     // class value
-                    candidates[2 * c + 1] = train->get_instance(keyIndex)->get(numAttrs - 1)->operator float();
+                    // candidates[2 * c + 1] = train->get_instance(keyIndex)->get(numAttrs - 1)->operator float();
+                    candidates[2 * c + 1] = trainArr[keyIndex][numAttrs - 1];
 
                     break;
                 }
@@ -135,8 +138,24 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < testInstances; i++)
         testLastAttrsArr[i] = test->get_instance(i)->get(numAttrs - 1)->operator int32();
 
+    float **trainArr = new float *[trainInstances];
+    for (int i = 0; i < trainInstances; i++) {
+        trainArr[i] = (float *) malloc(numAttrs * sizeof(float));
+        for (int j = 0; j < numAttrs; j++)
+            trainArr[i][j] = train->get_instance(i)->get(j)->operator float();
+    }
+    printf("trainArr copied\n");
+    float **testArr = new float *[testInstances];
+    for (int i = 0; i < testInstances; i++) {
+        testArr[i] = (float *) malloc(numAttrs * sizeof(float));
+        for (int j = 0; j < numAttrs; j++)
+            testArr[i][j] = test->get_instance(i)->get(j)->operator float();
+    }
+    printf("testArr copied\n");
+
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    predictions = KNN_ArrayImpl(nClasses, trainInstances, testInstances, numAttrs, train, test, k);
+    predictions = KNN_ArrayImpl(nClasses, trainInstances, testInstances, numAttrs, trainArr, testArr,
+                                train, test, k);
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     int *confusionMatrix = computeConfusionMatrix_ArrayImpl(
             predictions, nClasses, testInstances, testLastAttrsArr);// (predictions, test);
