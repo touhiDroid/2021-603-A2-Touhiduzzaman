@@ -1,3 +1,7 @@
+//
+// Created by Md Touhiduzzaman on 10/12/21.
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -45,7 +49,7 @@ float computeAccuracy(int *confusionMatrix, int nClasses, int nInstances) {
 }
 
 int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
-         float **trainArr, float **testArr, int k) {
+                   float **trainArr, float **testArr, int k) {
     // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
 
     // predictions is the array where you have to return the class predicted (integer) for the test dataset instances
