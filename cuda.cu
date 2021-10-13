@@ -9,6 +9,12 @@
 #include "libarff/arff_data.h"
 #include <bits/stdc++.h>
 
+#ifdef __CDT_PARSER__
+#define __global__
+#define __device__
+#define __shared__
+#endif
+
 using namespace std;
 
 float distance(int32 size, float *a, float *b) {
@@ -43,6 +49,115 @@ float computeAccuracy(int *confusionMatrix, int nClasses, int nInstances) {
 
     return successfulPredictions / ((float) nInstances * 1.0);
 }
+
+
+__device__ float distance_Cuda(long int size, float* a, int queryIndex, float* b, int keyIndex) {
+    float sum = 0;
+
+    for (int i = 0; i < size - 1; i++) {
+        float diff = (a[i + size * queryIndex] - b[i + size * keyIndex]);
+        sum += diff * diff;
+    }
+
+    return sum;
+}
+
+__global__ void Kernel (int num_classes, int trainInstances, int testInstances,
+                        float *trainValues, float *testValues, int32 *lastAttrs,
+                        int32 attrsSize, int k, int *predictions, float *candidates) {
+    int queryIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    if (queryIndex < testInstances) {
+        // Stores bincounts of each class over the final set of candidate NN
+        // int *classCounts = (int*)malloc(sizeof(int)*num_classes);
+        // cudaMalloc(&classCounts, num_classes * sizeof(int));
+
+        for (int keyIndex = 0; keyIndex < trainInstances; keyIndex++) {
+
+            // need to put __device__ before function
+            float dist = distance_Cuda(attrsSize, testValues, queryIndex, trainValues, keyIndex);
+
+            // Add to our candidates
+            for (int c = 0; c < k; c++) {
+                if (dist < candidates[2 * c]) {
+                    // Found a new candidate
+                    // Shift previous candidates down by one
+                    for (int x = k - 2; x >= c; x--) {
+                        candidates[2 * x + 2] = candidates[2 * x];
+                        candidates[2 * x + 3] = candidates[2 * x + 1];
+                    }
+
+                    // Set key vector as potential k NN
+                    candidates[2 * c] = dist;
+                    candidates[2 * c + 1] = lastAttrs[keyIndex]; // class value -> RACE condition in these 2 lines ??
+
+                    break;
+                }
+            }
+        }
+
+        // Bincount the candidate labels and pick the most common
+        for (int i = 0; i < k; i++) {
+            classCounts[(int) candidates[2 * i + 1]] += 1;
+        }
+
+        int max = -1;
+        int max_index = 0;
+        for (int i = 0; i < num_classes; i++) {
+            if (classCounts[i] > max) {
+                max = classCounts[i];
+                max_index = i;
+            }
+        }
+
+        predictions[queryIndex] = max_index;
+
+        for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
+    }
+}
+
+int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances,
+              float **trainValues, float **testValues,
+              int32 *lastAttrs, int32 attrsSize, int k, int nThreads) {
+    // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
+
+    // predictions is the array where you have to return the class predicted (integer) for the test dataset instances
+    int *predictions = (int *) malloc(testInstances * sizeof(int));
+
+    // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
+    float *candidates = (float *) calloc(k * 2, sizeof(float));
+    for (int i = 0; i < 2 * k; i++) {
+        candidates[i] = FLT_MAX;
+    }
+
+    int *device_predictions;
+    float *device_candidates;
+    float *device_trainValues;
+    float *device_testValues;
+    int32 *device_lastAttrs;
+
+    cudaMalloc((void**)&device_predictions, testInstances * sizeof(int));
+    cudaMalloc((void**)&device_candidates, k * 2 * sizeof(float));
+    cudaMalloc((void**)&device_trainValues, trainInstances * attrsSize * sizeof(float));
+    cudaMalloc((void**)&device_testValues, testInstances * attrsSize * sizeof(float));
+    cudaMalloc((void**)&device_lastAttrs, testInstances * sizeof(int32));
+
+    cudaMemcpy(device_predictions, predictions, testInstances * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_candidates, candidates, k * 2 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_trainValues, trainValues[0], trainInstances * attrsSize * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_testValues, testValues[0], testInstances * attrsSize * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_lastAttrs, lastAttrs, testInstances * sizeof(int32), cudaMemcpyHostToDevice);
+
+    int THREAD_BLOCK = nThreads; //Try 8, 16, 32, 64, 128, 256
+
+    Kernel <<< (testInstances + THREAD_BLOCK - 1) / THREAD_BLOCK, THREAD_BLOCK >>> (
+            num_classes, trainInstances, testInstances, device_trainValues, device_testValues,
+            device_lastAttrs, attrsSize, k, device_predictions, device_candidates);
+
+    cudaMemcpy(predictions, device_predictions, testInstances * sizeof(int), cudaMemcpyDeviceToHost);
+
+    return predictions;
+}
+
 
 int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
          float **trainArr, float **testArr, int k) {
@@ -112,12 +227,14 @@ int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAt
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 4) {
-        cout << "Usage: ./multithreaded.o datasets/train.arff datasets/test.arff k" << endl;
+    if (argc != 5) {
+        cout << "Usage: ./cuda.o datasets/train.arff datasets/test.arff k NUM_DESIRED_THREADS"
+                "\n\t\tk = 3 (typically)\n\t\tNUM_DESIRED_THREADS = 1,2,4,8,16,32,64,128 or 256" << endl;
         exit(0);
     }
 
     int k = strtol(argv[3], NULL, 10);
+    int num_desired_threads = strtol(argv[4], NULL, 10);
 
     // Open the datasets
     ArffParser parserTrain(argv[1]);
@@ -153,7 +270,8 @@ int main(int argc, char *argv[]) {
     printf("testArr copied\n");
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    predictions = KNN(nClasses, trainInstances, testInstances, numAttrs, trainArr, testArr, k);
+    predictions = KNN_Cuda(nClasses, trainInstances, testInstances, trainArr, testArr,
+                           testLastAttrsArr, numAttrs, k, num_desired_threads);
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     int *confusionMatrix = computeConfusionMatrix(
             predictions, nClasses, testInstances, testLastAttrsArr);// (predictions, test);
