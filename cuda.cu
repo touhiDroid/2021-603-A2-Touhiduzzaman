@@ -12,19 +12,9 @@
 #include "libarff/arff_parser.h"
 #include "libarff/arff_data.h"
 #include <bits/stdc++.h>
+#include <cuda_runtime.h>
 
 using namespace std;
-
-float distance(int32 size, float *a, float *b) {
-    float sum = 0;
-
-    for (int i = 0; i < size; i++) {
-        float diff = (a[i] - b[i]);
-        sum += diff * diff;
-    }
-
-    return sum;
-}
 
 int *computeConfusionMatrix(int *predictions, int nClasses, int nInstances, int32 *lastAttributesArr) {
     int *confusionMatrix = (int *) calloc(nClasses * nClasses, sizeof(int));
@@ -46,73 +36,6 @@ float computeAccuracy(int *confusionMatrix, int nClasses, int nInstances) {
     }
 
     return successfulPredictions / ((float) nInstances * 1.0);
-}
-
-int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
-         float **trainArr, float **testArr, int k) {
-    // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
-
-    // predictions is the array where you have to return the class predicted (integer) for the test dataset instances
-    int *predictions = (int *) malloc(testInstances * sizeof(int));
-
-    // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
-    float *candidates = (float *) calloc(k * 2, sizeof(float));
-    for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
-
-    // int num_classes = train->num_classes();
-
-    // Stores bincounts of each class over the final set of candidate NN
-    int *classCounts = (int *) calloc(num_classes, sizeof(int));
-
-    printf("Starting O(n^3)\n");
-    for (int queryIndex = 0; queryIndex < testInstances; queryIndex++) {
-        for (int keyIndex = 0; keyIndex < trainInstances; keyIndex++) {
-
-            // float dist = distance(test->get_instance(queryIndex), train->get_instance(keyIndex));
-            float dist = distance(numAttrs, testArr[queryIndex], trainArr[keyIndex]);
-
-            // Add to our candidates
-            for (int c = 0; c < k; c++) {
-                if (dist < candidates[2 * c]) {
-                    // Found a new candidate
-                    // Shift previous candidates down by one
-                    for (int x = k - 2; x >= c; x--) {
-                        candidates[2 * x + 2] = candidates[2 * x];
-                        candidates[2 * x + 3] = candidates[2 * x + 1];
-                    }
-
-                    // Set key vector as potential k NN
-                    candidates[2 * c] = dist;
-                    // class value
-                    // candidates[2 * c + 1] = train->get_instance(keyIndex)->get(numAttrs - 1)->operator float();
-                    candidates[2 * c + 1] = trainArr[keyIndex][numAttrs - 1];
-
-                    break;
-                }
-            }
-        }
-
-        // Bincount the candidate labels and pick the most common
-        for (int i = 0; i < k; i++) {
-            classCounts[(int) candidates[2 * i + 1]] += 1;
-        }
-
-        int max = -1;
-        int max_index = 0;
-        for (int i = 0; i < num_classes; i++) {
-            if (classCounts[i] > max) {
-                max = classCounts[i];
-                max_index = i;
-            }
-        }
-
-        predictions[queryIndex] = max_index;
-
-        for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
-        memset(classCounts, 0, num_classes * sizeof(int));
-    }
-
-    return predictions;
 }
 
 __device__ float distance_Cuda(int32 size, float* a, int queryIndex, float* b, int keyIndex) {
@@ -219,7 +142,7 @@ int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances, int32 
 
     int THREAD_BLOCK = nThreads;
 
-    printf("calling Kernel for chunk of testInstances=%d with threads=%d\n", testInstances, THREAD_BLOCK);
+    printf("calling Kernel for chunk of testInstances=%ld with threads=%d\n", testInstances, THREAD_BLOCK);
     Kernel <<< (testInstances + THREAD_BLOCK - 1) / THREAD_BLOCK, THREAD_BLOCK >>> (testInstances, trainInstances, num_classes,
                                                                                     device_trainArr, device_testArr, numAttrs, k, device_candidates, device_predictions, device_classCounts);
     printf("done Kernel\n");
@@ -233,7 +156,7 @@ int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances, int32 
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        cout << "Usage: ./multithreaded.o datasets/train.arff datasets/test.arff k NUM_THREADS" << endl;
+        cout << "Usage: ./cuda.o datasets/train.arff datasets/test.arff k NUM_THREADS" << endl;
         exit(0);
     }
 
