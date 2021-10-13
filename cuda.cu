@@ -1,7 +1,3 @@
-//
-// Created by Md Touhiduzzaman on 10/12/21.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -35,6 +31,7 @@ int *computeConfusionMatrix(int *predictions, int nClasses, int nInstances, int3
 
         confusionMatrix[trueClass * nClasses + predictedClass]++;
     }
+
     return confusionMatrix;
 }
 
@@ -48,6 +45,7 @@ float computeAccuracy(int *confusionMatrix, int nClasses, int nInstances) {
     return successfulPredictions / ((float) nInstances * 1.0);
 }
 
+
 int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
          float **trainArr, float **testArr, int k) {
     // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
@@ -57,6 +55,7 @@ int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAt
 
     // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
     float *candidates = (float *) calloc(k * 2, sizeof(float));
+
     for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
 
     // int num_classes = train->num_classes();
@@ -99,6 +98,7 @@ int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAt
 
         int max = -1;
         int max_index = 0;
+
         for (int i = 0; i < num_classes; i++) {
             if (classCounts[i] > max) {
                 max = classCounts[i];
@@ -109,6 +109,7 @@ int *KNN(int num_classes, int32 trainInstances, int32 testInstances, int32 numAt
         predictions[queryIndex] = max_index;
 
         for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
+
         memset(classCounts, 0, num_classes * sizeof(int));
     }
 
@@ -226,6 +227,7 @@ int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances, int32 
 
         predictions[queryIndex] = max_index;
 
+
         printf("start Kernel_Candidates\n");
         //for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
         Kernel_Candidates <<< (k * 2 + THREAD_BLOCK - 1) / THREAD_BLOCK, THREAD_BLOCK >>>(k * 2, device_candidates);
@@ -298,5 +300,6 @@ int main(int argc, char *argv[]) {
     /*printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
            "Accuracy was %.4f\n", k, test->num_instances(), train->num_instances(),
            (long long unsigned int) diff, accuracy);*/
+  
     return 0;
 }
