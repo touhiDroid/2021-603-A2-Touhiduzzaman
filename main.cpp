@@ -112,6 +112,8 @@ int *KNN(ArffData *train, ArffData *test, int k) {
     return predictions;
 }
 
+int *KNN_ArrayImpl(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
+                   ArffData *train, ArffData *test, int k) {
 int *KNN_ArrayImpl(int trainClasses, int trainInstances, int testInstances,
                    float **trainValues, float **testValues, float *lastAttrs, int attrsSize, int k) {
     // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
@@ -121,10 +123,10 @@ int *KNN_ArrayImpl(int trainClasses, int trainInstances, int testInstances,
 
     // stores k-NN candidates for a query vector as a sorted 2d array. First element is inner product, second is class.
     float *candidates = (float *) calloc(k * 2, sizeof(float));
-    for (int i = 0; i < 2 * k; i++) {
-        candidates[i] = FLT_MAX;
-    }
 
+    for (int i = 0; i < 2 * k; i++) { candidates[i] = FLT_MAX; }
+
+    // int num_classes = train->num_classes();
     // Stores bincounts of each class over the final set of candidate NN
     int *classCounts = (int *) calloc(trainClasses, sizeof(int));
 
@@ -145,7 +147,8 @@ int *KNN_ArrayImpl(int trainClasses, int trainInstances, int testInstances,
 
                     // Set key vector as potential k NN
                     candidates[2 * c] = dist;
-                    candidates[2 * c + 1] = lastAttrs[keyIndex]; // class value
+                    // class value
+                    candidates[2 * c + 1] = train->get_instance(keyIndex)->get(numAttrs - 1)->operator float();
 
                     break;
                 }
@@ -412,6 +415,17 @@ int main(int argc, char *argv[]) {
     struct timespec start, end;
     int *predictions = NULL;
 
+
+    int nClasses = test->num_classes();
+    int32 trainInstances = train->num_instances();
+    int32 testInstances = test->num_instances();
+    int32 numAttrs = test->num_attributes();
+
+    int32 *testLastAttrsArr =  (int32 *) malloc(testInstances * sizeof(int32));
+    for(int i=0; i < testInstances; i++)
+        testLastAttrsArr[i] = test->get_instance(i)->get(numAttrs - 1)->operator int32();
+
+
     // region : Sequential Version
     if (version == SEQUENTIAL) {
         int tri = train->num_instances();
@@ -427,18 +441,22 @@ int main(int argc, char *argv[]) {
             lastAttributesArr[i] = test->get_instance(i)->get(test->num_attributes() - 1)->operator float();
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-        predictions = KNN_ArrayImpl(train->num_classes(), tri, tsi, trainValues, testValues, lastAttributesArr, attrs_size, k);
+
+        predictions = KNN_ArrayImpl(nClasses, trainInstances, testInstances, numAttrs, train, test, k);
+
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
         // Compute the confusion matrix
-        int *confusionMatrix = computeConfusionMatrix_ArrayImpl(predictions, test->num_classes(),
-                                            test->num_instances(), lastAttributesArr);// (predictions, test);
+
+        int *confusionMatrix = computeConfusionMatrix_ArrayImpl(predictions, nClasses,
+                                            testInstances, testLastAttrsArr);// (predictions, test);
+
         // Calculate the accuracy
         float accuracy = computeAccuracy_ArrayImpl(confusionMatrix, test->num_classes(),
                                                    test->num_instances());// (confusionMatrix, test);
         uint64_t diff = (1000000000L * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec) / 1e6;
         printf("The %i-NN classifier for %lu test instances on %lu train instances required %llu ms CPU time. "
-               "Accuracy was %.4f\n", k, test->num_instances(), train->num_instances(),
+               "Accuracy was %.4f\n", k, testInstances, trainInstances,
                (long long unsigned int) diff, accuracy);
     }
         // endregion : Sequential Version
