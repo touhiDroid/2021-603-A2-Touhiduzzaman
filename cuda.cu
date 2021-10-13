@@ -163,7 +163,7 @@ __global__ void Kernel_Candidates(int size, float *candidates) {
 }
 
 int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances, int32 numAttrs,
-              float **trainArr, float **testArr, int k) {
+              float **trainArr, float **testArr, int k, int nThreads) {
     printf("knn_cuda\n");
     // Implements a sequential kNN where for each candidate query an in-place priority queue is maintained to identify the kNN's.
 
@@ -194,7 +194,7 @@ int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances, int32 
     cudaMemcpy(device_testArr, testArr[0], testInstances * numAttrs * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(device_candidates, candidates, k * 2 * sizeof(float), cudaMemcpyHostToDevice);
 
-    int THREAD_BLOCK = 64;
+    int THREAD_BLOCK = nThreads;
 
     printf("starting query loop\n");
     for (int queryIndex = 0; queryIndex < testInstances; queryIndex++) {
@@ -246,12 +246,14 @@ int *KNN_Cuda(int num_classes, int32 trainInstances, int32 testInstances, int32 
 
 
 int main(int argc, char *argv[]) {
-    if (argc != 4) {
-        cout << "Usage: ./cuda.o datasets/train.arff datasets/test.arff k" << endl;
+    if (argc != 5) {
+        cout << "Usage: ./cuda.o datasets/train.arff datasets/test.arff kk NUM_DESIRED_THREADS"
+                "\n\t\tk = 3 (typically)\n\t\tNUM_DESIRED_THREADS = 1,2,4,8,16,32,64, 128, 256" << endl;
         exit(0);
     }
 
     int k = strtol(argv[3], NULL, 10);
+    int num_desired_threads = strtol(argv[4], NULL, 10);
 
     // Open the datasets
     ArffParser parserTrain(argv[1]);
@@ -287,7 +289,7 @@ int main(int argc, char *argv[]) {
     printf("testArr copied\n");
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    predictions = KNN_Cuda(nClasses, trainInstances, testInstances, numAttrs, trainArr, testArr, k);
+    predictions = KNN_Cuda(nClasses, trainInstances, testInstances, numAttrs, trainArr, testArr, k, num_desired_threads);
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     int *confusionMatrix = computeConfusionMatrix(
             predictions, nClasses, testInstances, testLastAttrsArr);// (predictions, test);
