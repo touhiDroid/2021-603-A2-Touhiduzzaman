@@ -2,6 +2,7 @@
 \IEEEoverridecommandlockouts
 % The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
 \usepackage{cite}
+\usepackage{amsmath}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
@@ -11,278 +12,265 @@
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
 
-\title{Conference Paper Title*\\
-{\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and
-should not be used}
-\thanks{Identify applicable funding agency here. If none, delete this.}
+\title{CMSC 603 of Fall-2021 : High-Performance Distributed Systems\\Report on Assignment-2
+% {\footnotesize}
 }
 
-\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
+\author{\IEEEauthorblockN{Md Touhiduzzaman}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{Virginia Commonwealth University (VCU)}\\
+Richmond, Virginia, USA \\
+touhiduzzamm@vcu.edu}
 }
 
 \maketitle
 
 \begin{abstract}
-This document is a model and instructions for \LaTeX.
-This and the IEEEtran.cls file define the components of your paper [title, text, heads, etc.]. *CRITICAL: Do Not Use Symbols, Special Characters, Footnotes, 
-or Math in Paper Title or Abstract.
+In this assignment, the impact of multiple threads, MPI and CUDA are tested on an implementation of the kNN algorithm. Firstly, the performance of the kNN algorithm is measured for a single threaded implementation and then tested respectively with multi-threaded, OpenMP, MPI and CUDA implementations for 1, 2, 4, 8, 16, 32, 64, 128 and 256 threads. In general, it is observed that the threaded versions continue to run faster roughly till the limit of the number of available processes in the host machine and then the runtimes again get worse due to the overheads of threaded operations like communication, forks and join. Depending on the efficiency and effectiveness of the implementations, the results comply with this concept.
+Then CUDA kernel is used to test the algorithm with different threads. A significant improvement on the runtime as well as dataset-size independent runtime is seen using CUDA, but a fall in accuracy is seen.
 \end{abstract}
 
 \begin{IEEEkeywords}
-component, formatting, style, styling, insert
+threads, openmp, mpi, knn, cuda
 \end{IEEEkeywords}
 
-\section{Introduction}
-This document is a model and instructions for \LaTeX.
-Please observe the conference page limits. 
 
-\section{Ease of Use}
+\section{Methodology}
+Posix thread is used to implement the multi-threaded version. The dataset is evenly distributed for each thread by calculating the partition size from the avaialabe data points and the number of available threads. The threads are joined to combine the predictions. Besides, OpenMP is used to implement further parallel version of the algorithm to let others to be compared as per their runtime and accuracy.
+Then, a CUDA kernel is defined to predict the class of the test instances. This kernel is run for various number of threads as 1, 2, 4, 8, 16, 32, 64, 128 and 256 threads like other versions of the code. For the CUDA kernel call, the block count is calculated as per the division of the test-cases in between the defined number of threads. The formula used here is - for $numTestInstances$ number of test-instances and $numThreads$ number of threads, the number of blocks, \[numBlocks=\textstyle\frac{numTestInstances ~ + ~ numThreads ~ - ~ 1}{numThreads} \]
+The algorithms are run in the Maple VM of VCU having 28 processes.\\
+There were 3 sample datasets tested in the given assignment - a small-dataset with 592 training data and 80 test data, a medium sized dataset with 7354 training data and 370 test data and another large dataset with 30803 training data and 1718 test data. The results found from all of these 3 are discussed in the following section \ref{res}.
 
-\subsection{Maintaining the Integrity of the Specifications}
+\section{Results}\label{res}
 
-The IEEEtran class file is used to format your paper and style the text. All margins, 
-column widths, line spaces, and text fonts are prescribed; please do not 
-alter them. You may note peculiarities. For example, the head margin
-measures proportionately more than is customary. This measurement 
-and others are deliberate, using specifications that anticipate your paper 
-as one part of the entire proceedings, and not as an independent document. 
-Please do not revise any of the current designations.
+\subsection{Small Dataset}
+The sequential code requires 7 milliseconds to deliver 85\% accurate predictions. But the versions of openmp and MPI implementations require much less time to deliver similar or more accurate data. In contrary, the CUDA version requires almost a constant amount of time around \textit{670 ms} with a much less accuracy of 58.75\%. 
+\ref{tab:Table1} represents the collected runtime-data and ``Fig.~\ref{fig1}'' shows the runtime-graph for all the 5 methods using 1,2,4,8,16,32,64,128 and 256 threads on the small data set. The accuracy of the runs is represented by the Table~\ref{tab:Table2} and Fig.~\ref{fig2}.
 
-\section{Prepare Your Paper Before Styling}
-Before you begin to format your paper, first write and save the content as a 
-separate text file. Complete all content and organizational editing before 
-formatting. Please note sections \ref{AA}--\ref{SCM} below for more information on 
-proofreading, spelling and grammar.
-
-Keep your text and graphic files separate until after the text has been 
-formatted and styled. Do not number text heads---{\LaTeX} will do that 
-for you.
-
-\subsection{Abbreviations and Acronyms}\label{AA}
-Define abbreviations and acronyms the first time they are used in the text, 
-even after they have been defined in the abstract. Abbreviations such as 
-IEEE, SI, MKS, CGS, ac, dc, and rms do not have to be defined. Do not use 
-abbreviations in the title or heads unless they are unavoidable.
-
-\subsection{Units}
-\begin{itemize}
-\item Use either SI (MKS) or CGS as primary units. (SI units are encouraged.) English units may be used as secondary units (in parentheses). An exception would be the use of English units as identifiers in trade, such as ``3.5-inch disk drive''.
-\item Avoid combining SI and CGS units, such as current in amperes and magnetic field in oersteds. This often leads to confusion because equations do not balance dimensionally. If you must use mixed units, clearly state the units for each quantity that you use in an equation.
-\item Do not mix complete spellings and abbreviations of units: ``Wb/m\textsuperscript{2}'' or ``webers per square meter'', not ``webers/m\textsuperscript{2}''. Spell out units when they appear in text: ``. . . a few henries'', not ``. . . a few H''.
-\item Use a zero before decimal points: ``0.25'', not ``.25''. Use ``cm\textsuperscript{3}'', not ``cc''.)
-\end{itemize}
-
-\subsection{Equations}
-Number equations consecutively. To make your 
-equations more compact, you may use the solidus (~/~), the exp function, or 
-appropriate exponents. Italicize Roman symbols for quantities and variables, 
-but not Greek symbols. Use a long dash rather than a hyphen for a minus 
-sign. Punctuate equations with commas or periods when they are part of a 
-sentence, as in:
-\begin{equation}
-a+b=\gamma\label{eq}
-\end{equation}
-
-Be sure that the 
-symbols in your equation have been defined before or immediately following 
-the equation. Use ``\eqref{eq}'', not ``Eq.~\eqref{eq}'' or ``equation \eqref{eq}'', except at 
-the beginning of a sentence: ``Equation \eqref{eq} is . . .''
-
-\subsection{\LaTeX-Specific Advice}
-
-Please use ``soft'' (e.g., \verb|\eqref{Eq}|) cross references instead
-of ``hard'' references (e.g., \verb|(1)|). That will make it possible
-to combine sections, add equations, or change the order of figures or
-citations without having to go through the file line by line.
-
-Please don't use the \verb|{eqnarray}| equation environment. Use
-\verb|{align}| or \verb|{IEEEeqnarray}| instead. The \verb|{eqnarray}|
-environment leaves unsightly spaces around relation symbols.
-
-Please note that the \verb|{subequations}| environment in {\LaTeX}
-will increment the main equation counter even when there are no
-equation numbers displayed. If you forget that, you might write an
-article in which the equation numbers skip from (17) to (20), causing
-the copy editors to wonder if you've discovered a new method of
-counting.
-
-{\BibTeX} does not work by magic. It doesn't get the bibliographic
-data from thin air but from .bib files. If you use {\BibTeX} to produce a
-bibliography you must send the .bib files. 
-
-{\LaTeX} can't read your mind. If you assign the same label to a
-subsubsection and a table, you might find that Table I has been cross
-referenced as Table IV-B3. 
-
-{\LaTeX} does not have precognitive abilities. If you put a
-\verb|\label| command before the command that updates the counter it's
-supposed to be using, the label will pick up the last counter to be
-cross referenced instead. In particular, a \verb|\label| command
-should not go before the caption of a figure or a table.
-
-Do not use \verb|\nonumber| inside the \verb|{array}| environment. It
-will not stop equation numbers inside \verb|{array}| (there won't be
-any anyway) and it might stop a wanted equation number in the
-surrounding equation.
-
-\subsection{Some Common Mistakes}\label{SCM}
-\begin{itemize}
-\item The word ``data'' is plural, not singular.
-\item The subscript for the permeability of vacuum $\mu_{0}$, and other common scientific constants, is zero with subscript formatting, not a lowercase letter ``o''.
-\item In American English, commas, semicolons, periods, question and exclamation marks are located within quotation marks only when a complete thought or name is cited, such as a title or full quotation. When quotation marks are used, instead of a bold or italic typeface, to highlight a word or phrase, punctuation should appear outside of the quotation marks. A parenthetical phrase or statement at the end of a sentence is punctuated outside of the closing parenthesis (like this). (A parenthetical sentence is punctuated within the parentheses.)
-\item A graph within a graph is an ``inset'', not an ``insert''. The word alternatively is preferred to the word ``alternately'' (unless you really mean something that alternates).
-\item Do not use the word ``essentially'' to mean ``approximately'' or ``effectively''.
-\item In your paper title, if the words ``that uses'' can accurately replace the word ``using'', capitalize the ``u''; if not, keep using lower-cased.
-\item Be aware of the different meanings of the homophones ``affect'' and ``effect'', ``complement'' and ``compliment'', ``discreet'' and ``discrete'', ``principal'' and ``principle''.
-\item Do not confuse ``imply'' and ``infer''.
-\item The prefix ``non'' is not a word; it should be joined to the word it modifies, usually without a hyphen.
-\item There is no period after the ``et'' in the Latin abbreviation ``et al.''.
-\item The abbreviation ``i.e.'' means ``that is'', and the abbreviation ``e.g.'' means ``for example''.
-\end{itemize}
-An excellent style manual for science writers is \cite{b7}.
-
-\subsection{Authors and Affiliations}
-\textbf{The class file is designed for, but not limited to, six authors.} A 
-minimum of one author is required for all conference articles. Author names 
-should be listed starting from left to right and then moving down to the 
-next line. This is the author sequence that will be used in future citations 
-and by indexing services. Names should not be listed in columns nor group by 
-affiliation. Please keep your affiliations as succinct as possible (for 
-example, do not differentiate among departments of the same organization).
-
-\subsection{Identify the Headings}
-Headings, or heads, are organizational devices that guide the reader through 
-your paper. There are two types: component heads and text heads.
-
-Component heads identify the different components of your paper and are not 
-topically subordinate to each other. Examples include Acknowledgments and 
-References and, for these, the correct style to use is ``Heading 5''. Use 
-``figure caption'' for your Figure captions, and ``table head'' for your 
-table title. Run-in heads, such as ``Abstract'', will require you to apply a 
-style (in this case, italic) in addition to the style provided by the drop 
-down menu to differentiate the head from the text.
-
-Text heads organize the topics on a relational, hierarchical basis. For 
-example, the paper title is the primary text head because all subsequent 
-material relates and elaborates on this one topic. If there are two or more 
-sub-topics, the next level head (uppercase Roman numerals) should be used 
-and, conversely, if there are not at least two sub-topics, then no subheads 
-should be introduced.
-
-\subsection{Figures and Tables}
-\paragraph{Positioning Figures and Tables} Place figures and tables at the top and 
-bottom of columns. Avoid placing them in the middle of columns. Large 
-figures and tables may span across both columns. Figure captions should be 
-below the figures; table heads should appear above the tables. Insert 
-figures and tables after they are cited in the text. Use the abbreviation 
-``Fig.~\ref{fig}'', even at the beginning of a sentence.
-
-\begin{table}[htbp]
-\caption{Table Type Styles}
-\begin{center}
-\begin{tabular}{|c|c|c|c|}
-\hline
-\textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
-\cline{2-4} 
-\textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
-\hline
-copy& More table copy$^{\mathrm{a}}$& &  \\
-\hline
-\multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
-\end{tabular}
-\label{tab1}
-\end{center}
+\begin{table}
+    \begin{tabular}{||c | c | c | c | c | c||} 
+     \hline
+     Threads & Sequential & Multithreaded & OpenMP & MPI & CUDA \\ [0.2ex] 
+     \hline\hline
+     1	& 7	& 7	& 7 & 7 & 688\\ 
+     \hline
+    2 & 7 & 4 & 3 & 7 & 667\\
+     \hline
+    4 & 7 & 6 & 2 & 7 & 665\\
+     \hline
+    8 & 7 & 6 & 1 & 7 & 671\\
+     \hline
+    16 & 7 & 7& 1 & 7 & 665\\ [1ex] 
+     \hline
+    32 & 7 & 10 & 2 & 7 & 687\\ [1ex] 
+     \hline
+    64 & 7 & 12 & 2 & 7 & 667 \\ [1ex] 
+     \hline
+    128 & 7 & 13 & 4 & 7 & 669 \\ [1ex] 
+     \hline
+    256 & 7 & 12 & 5 & 7 & 657 \\ [1ex] 
+     \hline
+    \end{tabular}
+\caption{\label{tab:Table1}Runtime for Small Dataset}
 \end{table}
 
 \begin{figure}[htbp]
-\centerline{\includegraphics{fig1.png}}
-\caption{Example of a figure caption.}
-\label{fig}
+    \centerline{\includegraphics{report/rt_small_set.png}}
+    \caption{Runtimes for Small Dataset}
+    \label{fig1}
 \end{figure}
 
-Figure Labels: Use 8 point Times New Roman for Figure labels. Use words 
-rather than symbols or abbreviations when writing Figure axis labels to 
-avoid confusing the reader. As an example, write the quantity 
-``Magnetization'', or ``Magnetization, M'', not just ``M''. If including 
-units in the label, present them within parentheses. Do not label axes only 
-with units. In the example, write ``Magnetization (A/m)'' or ``Magnetization 
-\{A[m(1)]\}'', not just ``A/m''. Do not label axes with a ratio of 
-quantities and units. For example, write ``Temperature (K)'', not 
-``Temperature/K''.
+\begin{table}
+    \begin{tabular}{||c | c | c | c | c | c||} 
+     \hline
+     Threads & Sequential & Multithreaded & OpenMP & MPI & CUDA \\ [0.2ex] 
+     \hline\hline
+    1 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    2 & 85 & 86.25 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    4 & 85 & 85 & 85 & 85 &  58.75\\ [1ex] 
+     \hline
+    8 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    16 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    32 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    64 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    128 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    256 & 85 & 85 & 85 & 85 & 58.75\\ [1ex] 
+     \hline
+    \end{tabular}
+\caption{\label{tab:Table2}Accuracy for Small Dataset}
+\end{table}
 
-\section*{Acknowledgment}
+\begin{figure}[htbp]
+\centerline{\includegraphics{report/acc_small_set.png}}
+\caption{Accuracy for Small Dataset}
+\label{fig2}
+\end{figure}
 
-The preferred spelling of the word ``acknowledgment'' in America is without 
-an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B. 
-G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
-acknowledgments in the unnumbered footnote on the first page.
+\subsection{Medium Dataset}
+The sequential code requires around 600 milliseconds to deliver 25.95\% accurate predictions. But the multi-threaded version requires lesser time for the increasing number of threads until 1, 2, 4 and 8, but it increases monotonically till the 256 number of threads. The OpenMP implementation requires lesser time for increasing number of threads. But, the CUDA implementation requires almost similar runtime as the small-data set, i.e., around 620 ms for a very low accuracy rate of 8.65\%. 
+Table~\ref{tab:Table3} and Table~\ref{tab:Table4} show the runtime and accuracy of the different implementations, while the Fig.~\ref{fig3} and Fig.~\ref{fig4} show their corresponding graphical presentations.
 
-\section*{References}
+\begin{table}
+    \begin{tabular}{||c | c | c | c | c | c||} 
+     \hline
+     Threads & Sequential & Multithreaded & OpenMP & MPI & CUDA \\ [0.2ex] 
+     \hline\hline
+    1 & 629	& 610 & 604 & 629	& 698\\ [1ex] 
+     \hline
+    2 & 628	& 309 & 311 & 628	& 669\\ [1ex] 
+     \hline
+    4 & 599	& 318 & 170 & 599	& 674\\ [1ex] 
+     \hline
+    8 & 597 & 475 & 87 & 597	& 699\\ [1ex] 
+     \hline
+    16 & 596 & 609 & 73 & 596	& 676\\ [1ex] 
+     \hline
+    32 & 596 & 776 & 39 & 596	& 669\\ [1ex] 
+     \hline
+    64 & 630 & 926 & 40 & 630 & 677\\ [1ex] 
+     \hline
+    128 & 627 & 1127 & 41 & 627 & 695\\ [1ex] 
+     \hline
+    256 & 627 & 1155 & 29 & 627 & 699\\ [1ex] 
+     \hline
+    \end{tabular}
+\caption{\label{tab:Table3}Runtime for Medium Dataset}
+\end{table}
 
-Please number citations consecutively within brackets \cite{b1}. The 
-sentence punctuation follows the bracket \cite{b2}. Refer simply to the reference 
-number, as in \cite{b3}---do not use ``Ref. \cite{b3}'' or ``reference \cite{b3}'' except at 
-the beginning of a sentence: ``Reference \cite{b3} was the first $\ldots$''
+\begin{figure}[htbp]
+\centerline{\includegraphics{report/rt_medium_set.png}}
+\caption{Runtimes for Medium Dataset}
+\label{fig3}
+\end{figure}
 
-Number footnotes separately in superscripts. Place the actual footnote at 
-the bottom of the column in which it was cited. Do not put footnotes in the 
-abstract or reference list. Use letters for table footnotes.
+\begin{table}
+    \begin{tabular}{||c | c | c | c | c | c||} 
+    \hline
+    Threads & Sequential & Multithreaded & OpenMP & MPI & CUDA \\ [0.2ex] 
+    \hline\hline
+    1 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+    \hline
+    2 & 85 & 86.25 & 85 & 85 & 8.65\\ [1ex] 
+    \hline
+    4 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+    \hline
+    8 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+    \hline
+    16 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+     \hline
+    32 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+     \hline
+    64 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+     \hline
+    128 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+     \hline
+    256 & 85 & 85 & 85 & 85 & 8.65\\ [1ex] 
+     \hline
+    \end{tabular}
+\caption{\label{tab:Table4}Accuracy for Medium Dataset}
+\end{table}
 
-Unless there are six authors or more give all authors' names; do not use 
-``et al.''. Papers that have not been published, even if they have been 
-submitted for publication, should be cited as ``unpublished'' \cite{b4}. Papers 
-that have been accepted for publication should be cited as ``in press'' \cite{b5}. 
-Capitalize only the first word in a paper title, except for proper nouns and 
-element symbols.
+\begin{figure}[htbp]
+    \centerline{\includegraphics{report/acc_medium_set.png}}
+    \caption{Accuracy for Medium Dataset}
+    \label{fig4}
+\end{figure}
 
-For papers published in translation journals, please give the English 
-citation first, followed by the original foreign-language citation \cite{b6}.
+\subsection{Large Dataset}
+The sequential code requires around 1200 milliseconds to deliver 99.48\% accurate predictions. But the multi-threaded version requires lesser time for the increasing number of threads until 1, 2 and 4, but it increases monotonically till the 256 number of threads. The OpenMP implementation requires lesser time for increasing number of threads. But, the CUDA implementation requires almost similar runtime around 740 ms for a very low accuracy rate of 8.96\%. 
+Table~\ref{tab:Table5} and Table~\ref{tab:Table6} show the runtime and accuracy of the different implementations, while the Fig.~\ref{fig5} and Fig.~\ref{fig6} show their corresponding graphical presentations.
+
+\begin{table}
+    \begin{tabular}{||c | c | c | c | c | c||} 
+     \hline
+     Threads & Sequential & Multithreaded & OpenMP & MPI & CUDA \\ [0.2ex] 
+     \hline\hline
+    1 & 11973 & 12121 & 11982 & 11973 & 977 \\ [.1ex] 
+     \hline
+    2 & 12030 & 6576 & 6509 & 12030 & 782 \\ [.1ex] 
+     \hline
+    4 & 11980 & 6477 & 3258 & 11980 & 730 \\ [.1ex] 
+     \hline
+    8 & 12009 & 9533 & 1786 & 12009 & 736 \\ [.1ex] 
+     \hline
+    16 & 11996 & 11624 & 1068 & 11996 & 719 \\ [.1ex] 
+     \hline
+    64 & 12116 & 16599 & 642 & 12116 & 720 \\ [.1ex] 
+     \hline
+    128 & 11906 & 20225 & 495 & 11906 & 743 \\ [.1ex] 
+     \hline
+    256 & 12233 & 38863 & 485 & 12233 & 743 \\ [.1ex] 
+     \hline
+    \end{tabular}
+\caption{\label{tab:Table5}Runtimes for Large Dataset}
+\end{table}
+
+\begin{figure}[htbp]
+    \centerline{\includegraphics{report/rt_large_set.png}}
+    \caption{Runtimes for Large Dataset}
+    \label{fig5}
+\end{figure}
+
+
+\begin{table}
+    \begin{tabular}{||c | c | c | c | c | c||} 
+     \hline
+     Threads & Sequential & Multithreaded & OpenMP & MPI & CUDA \\ [0.1ex] 
+     \hline\hline
+    1 & 99.48 & 99.48 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    2 & 99.48 & 50.06 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    4 & 99.48 & 50.06 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    8 & 99.48 & 75.09 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    16 & 99.48 & 87.6 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    32 & 99.48 & 93.83 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    64 & 99.48 & 96.97 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    128 & 99.48 & 98.54 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    256 & 99.48 & 99.3 & 99.48 & 99.48 & 8.96 \\ [.1ex] 
+     \hline
+    \end{tabular}
+\caption{\label{tab:Table6}Accuracy for Large Dataset}
+\end{table}
+
+\begin{figure}[htbp]
+    \centerline{\includegraphics{report/acc_large_set.png}}
+    \caption{Accuracy for Large Dataset}
+    \label{fig6}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centerline{\includegraphics[width=1\linewidth]{report/profiler.png}}
+    \caption{Eclipse Profiler Screenshot for CUDA Kernel execution}
+    \label{fig7}
+\end{figure}
+
+
+\subsection{Speedup and Scalability Analysis}
+From the profiler analysis in Eclipse for the CUDA run of 256 threads, we can get that the \textit{cudaMalloc} operation requires the maximum sequential time of 260.67 milliseconds, while the Kernel calls require 67.27 milliseconds on average and other sequential processes accumulate to around 44.5 milliseconds. Here, we can say that the total runtime of the CUDA code for 256 threads is 372.44 ms and that of the serial execution is 12233 ms. So, the scalability of the CUDA implementation in comparison to the sequential code is 33 times.
+
+\section*{Conclusion}
+The multithreaded code actually has a few misconfigurations to deliver worse runtime than the sequential version of the implementation, though it is theoretically to be correct after the available processes, i.e. 28 in the Maple server, is exceeded by the 32 to 256 number of threads' runs. About the CUDA runtime, it can be said that the memory operations require the major portion of the runtime and, that being universal for any number of threads and almost identical for any length of the memory operation due to the large bandwidth between the host and the device, it is requiring very minor fluctuation due to the size of the data-set and almost no fluctuation for different number of threads. This judgement can be verified from the Fig.~\ref{fig7} showing the Eclipse profiler screenshot, where the \textit{cudaMalloc} operations are seen to consume more than 70\% of the total runtime for a 256 thread-per-block run of the CUDA implementation.
+
 
 \begin{thebibliography}{00}
-\bibitem{b1} G. Eason, B. Noble, and I. N. Sneddon, ``On certain integrals of Lipschitz-Hankel type involving products of Bessel functions,'' Phil. Trans. Roy. Soc. London, vol. A247, pp. 529--551, April 1955.
-\bibitem{b2} J. Clerk Maxwell, A Treatise on Electricity and Magnetism, 3rd ed., vol. 2. Oxford: Clarendon, 1892, pp.68--73.
-\bibitem{b3} I. S. Jacobs and C. P. Bean, ``Fine particles, thin films and exchange anisotropy,'' in Magnetism, vol. III, G. T. Rado and H. Suhl, Eds. New York: Academic, 1963, pp. 271--350.
-\bibitem{b4} K. Elissa, ``Title of paper if known,'' unpublished.
-\bibitem{b5} R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
-\bibitem{b6} Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
-\bibitem{b7} M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
+\bibitem{b1} Dr. Alberto Cano, Slides and lecture notes for ``CMSC-603 (High Performance and Distributed Systems`` course of fall-2021, Virginia Commonwealth University, Richmond, VA.
+
+\bibitem{b2} Fayez Gebali, ``Algorithms and Parallel Computing``.
 \end{thebibliography}
 \vspace{12pt}
-\color{red}
-IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
 
 \end{document}
